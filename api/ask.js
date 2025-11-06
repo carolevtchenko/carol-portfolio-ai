@@ -1,4 +1,4 @@
-// /api/ask.js — Gemini v1 estável + erros verbosos
+// /api/ask.js — Gemini v1 (modelo correto) + logs de erro verbosos
 // ENV: GEMINI_API_KEY, AUTH_TOKEN
 
 export default async function handler(req, res) {
@@ -23,16 +23,16 @@ export default async function handler(req, res) {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
     const {
       messages = [],
-      systemPrompt = "Você é o assistente do portfólio da Carol Levtchenko. Responda em PT-BR, de forma clara e objetiva.",
+      systemPrompt = "Você é o assistente do portfólio da Carol Levtchenko. Responda em PT-BR com clareza e objetividade.",
       knowledge = "",
-      model = "models/gemini-2.5-flash",
+      // ⚠️ sem prefixo "models/" aqui
+      model = "gemini-2.5-flash",
       temperature = 0.7,
       topP = 0.95,
       topK = 40
     } = body;
 
-    // 1) Prompt simples e compatível com v1
-    // (mandamos tudo como um único conteúdo do usuário — funciona em todos os modelos v1)
+    // Prompt único, compatível
     const historyTxt = messages
       .map(m => `${m.role === "assistant" ? "Assistente" : "Usuário"}: ${m.content}`)
       .join("\n");
@@ -45,6 +45,7 @@ ${historyTxt || "Usuário: Oi!"}
 `;
 
     const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+
     const payload = {
       contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
       generationConfig: { temperature, topP, topK }
@@ -56,26 +57,28 @@ ${historyTxt || "Usuário: Oi!"}
       body: JSON.stringify(payload)
     });
 
-    const raw = await r.text(); // pode vir vazio; ainda assim capturamos status
+    const raw = await r.text();
     let data;
     try { data = raw ? JSON.parse(raw) : {}; } catch { data = { raw }; }
 
     if (!r.ok) {
+      // também loga no servidor da Vercel para debug
+      console.error("Gemini error", { status: r.status, statusText: r.statusText, raw });
       return res.status(500).json({
         error: "Gemini error",
         status: r.status,
         statusText: r.statusText,
-        details: data.raw ?? data
+        details: raw || data
       });
     }
 
-    // 2) Extrai resposta com fallback
     const reply =
       data?.candidates?.[0]?.content?.parts?.map(p => p?.text).filter(Boolean).join("\n") ||
       "(sem resposta)";
 
     return res.status(200).json({ reply });
   } catch (err) {
+    console.error("Server error", err);
     return res.status(500).json({ error: "Server error", details: String(err?.message || err) });
   }
 }
