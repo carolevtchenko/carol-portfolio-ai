@@ -1,135 +1,50 @@
-// /api/ask.js — Gemini v1 (modelo correto) + logs de erro verbosos
-// ENV: GEMINI_API_KEY, AUTH_TOKEN
-// CORS (coloque isso no início do handler, antes de qualquer return)
-res.setHeader("Access-Control-Allow-Origin", "*");
-res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-res.setHeader("Access-Control-Max-Age", "600"); // cache do preflight
-
-if (req.method === "OPTIONS") {
-  return res.status(204).end(); // 204 é melhor pra preflight
-}
-
-
 export default async function handler(req, res) {
-  if (req.method === "OPTIONS") return res.status(200).end();
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "Method Not Allowed" });
-  }
-
-  // CORS
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
   try {
-    // Auth
+    // --- ✅ Configuração de CORS (logo no início)
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Max-Age", "600");
+
+    // --- ✅ Preflight (navegadores fazem isso antes do POST real)
+    if (req.method === "OPTIONS") {
+      return res.status(204).end();
+    }
+
+    // --- ✅ Apenas POST permitido
+    if (req.method !== "POST") {
+      res.setHeader("Allow", "POST");
+      return res.status(405).json({ error: "Method Not Allowed" });
+    }
+
+    // --- ✅ Autenticação simples (Bearer Token)
     const expected = `Bearer ${process.env.AUTH_TOKEN}`;
     if (!process.env.AUTH_TOKEN || (req.headers.authorization || "") !== expected) {
+      console.warn("Unauthorized request");
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    // Body
-    const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
-    const {
-      messages = [],
-      systemPrompt = "Você é o assistente do portfólio da Carol Levtchenko. Responda em PT-BR com clareza e objetividade.",
-      knowledge = "",
-      // ⚠️ sem prefixo "models/" aqui
-      model = "gemini-2.5-flash",
-      temperature = 0.7,
-      topP = 0.95,
-      topK = 40
-    } = body;
-
-    // Prompt único, compatível
-    const historyTxt = messages
-      .map(m => `${m.role === "assistant" ? "Assistente" : "Usuário"}: ${m.content}`)
-      .join("\n");
-
-    const fullPrompt =
-`${systemPrompt}
-${knowledge ? `\n### KNOWLEDGE\n${String(knowledge).slice(0, 100000)}\n` : ""}
-### HISTÓRICO
-${historyTxt || "Usuário: Oi!"}
-`;
-
-    const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
-
-    const payload = {
-      contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
-      generationConfig: { temperature, topP, topK }
-    };
-
-    const r = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-
-    const raw = await r.text();
-    let data;
-    try { data = raw ? JSON.parse(raw) : {}; } catch { data = { raw }; }
-
-    if (!r.ok) {
-      // também loga no servidor da Vercel para debug
-      console.error("Gemini error", { status: r.status, statusText: r.statusText, raw });
-      return res.status(500).json({
-        error: "Gemini error",
-        status: r.status,
-        statusText: r.statusText,
-        details: raw || data
-      });
+    // --- ✅ Parse do corpo da requisição
+    let body = {};
+    try {
+      body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+    } catch (err) {
+      console.error("Invalid JSON:", err);
+      return res.status(400).json({ error: "Invalid JSON body" });
     }
 
-    const reply =
-      data?.candidates?.[0]?.content?.parts?.map(p => p?.text).filter(Boolean).join("\n") ||
-      "(sem resposta)";
-
-    return res.status(200).json({ reply });
-  } catch (err) {
-    console.error("Server error", err);
-    return res.status(500).json({ error: "Server error", details: String(err?.message || err) });
-  }
-}
-export default async function handler(req, res) {
-  // 🔹 CORS (precisa vir logo no início)
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Max-Age", "600"); // cache preflight
-
-  if (req.method === "OPTIONS") {
-    return res.status(204).end(); // resposta para o preflight
-  }
-
-  // 🔹 Só aceita POST
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "Method Not Allowed" });
-  }
-
-  try {
-    // 🔹 Autenticação simples com AUTH_TOKEN
-    const expected = `Bearer ${process.env.AUTH_TOKEN}`;
-    if (!process.env.AUTH_TOKEN || (req.headers.authorization || "") !== expected) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    // 🔹 Lê corpo da requisição
-    const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
     const {
       messages = [],
-      systemPrompt = "You are the professional portfolio assistant of Carol Levtchenko.",
+      systemPrompt = "You are Carol Levtchenko's professional portfolio assistant.",
       knowledge = "",
       model = "models/gemini-2.5-flash",
       temperature = 0.3,
     } = body;
 
-    // 🔹 Monta o prompt principal
+    // --- ✅ Prompt principal
     const sysPrompt = `${systemPrompt}${knowledge ? `\n\n### KNOWLEDGE\n${String(knowledge).slice(0, 100000)}` : ""}`;
 
-    // 🔹 Chamada à API do Gemini (Google Generative Language)
+    // --- ✅ Chamada ao Gemini API
     const geminiRes = await fetch(
       "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
       {
@@ -156,21 +71,18 @@ export default async function handler(req, res) {
       }
     );
 
-    // 🔹 Trata erros da API
     if (!geminiRes.ok) {
-      const errorText = await geminiRes.text();
-      console.error("Gemini API Error:", errorText);
-      return res.status(500).json({ error: "Gemini error", details: errorText });
+      const text = await geminiRes.text();
+      console.error("Gemini API Error:", text);
+      return res.status(500).json({ error: "Gemini error", details: text });
     }
 
-    // 🔹 Extrai a resposta
     const data = await geminiRes.json();
     const reply =
       data?.candidates?.[0]?.content?.parts?.[0]?.text ||
       data?.candidates?.[0]?.output ||
-      "";
+      "I'm sorry, I couldn’t generate a response.";
 
-    // 🔹 Retorna para o frontend
     return res.status(200).json({ reply });
   } catch (err) {
     console.error("Server error:", err);
