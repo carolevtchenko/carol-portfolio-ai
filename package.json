@@ -1,5 +1,8 @@
 {
   "name": "carol-portfolio-ai",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "googleapis": "^165.0.0"
+  }
 }

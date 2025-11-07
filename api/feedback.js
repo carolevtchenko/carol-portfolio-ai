@@ -1,56 +1,88 @@
 // Arquivo: api/feedback.js
+import { google } from 'googleapis';
+
+// Coloque o ID da sua Planilha no Vercel como uma variável de ambiente SHEET_ID
+const SPREADSHEET_ID = process.env.SHEET_ID; 
 
 export default async function handler(req, res) {
   try {
-    // --- CORS e Método (para aceitar requisições de outros domínios)
+    // --- CORS e Método
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.setHeader("Access-Control-Max-Age", "600");
     if (req.method === "OPTIONS") return res.status(204).end();
     if (req.method !== "POST") {
       res.setHeader("Allow", "POST");
       return res.status(405).json({ error: "Method Not Allowed" });
     }
 
-    // --- Auth (usando o mesmo token de segurança do api/ask.js)
+    // --- Auth do Assistente (mantida por segurança)
     const expected = `Bearer ${process.env.AUTH_TOKEN}`;
     if (!process.env.AUTH_TOKEN || (req.headers.authorization || "") !== expected) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    // --- Parse body (espera o payload do frontend)
-    let body = {};
-    try {
-      body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
-    } catch {
-      return res.status(400).json({ error: "Invalid JSON body" });
-    }
-
+    // --- Parse body
+    const body = req.body;
+    
     const {
-      feedback,           // 'Yes' ou 'No'
-      messageId,          // ID da bolha de feedback
-      assistantResponse,  // O texto da resposta avaliada
-      originalQuestion,   // A pergunta que gerou a resposta
+      feedback,
+      assistantResponse,
+      originalQuestion,
       timestamp,
-      // ... outros campos (user_id, etc.)
+      // ... messageId, etc.
     } = body;
 
-    // =======================================================
-    // ⚠️ AQUI VOCÊ ADICIONA SUA LÓGICA DE ARMAZENAMENTO REAL!
-    // Exemplo:
-    // await db.collection('feedback').insert({ 
-    //     feedback, assistantResponse, originalQuestion, timestamp 
-    // });
-    // =======================================================
+    // ----------------------------------------------------
+    // 1. AUTENTICAÇÃO COM A CHAVE JSON DA CONTA DE SERVIÇO
+    // ----------------------------------------------------
+    if (!process.env.GCP_SERVICE_ACCOUNT_JSON || !SPREADSHEET_ID) {
+        return res.status(500).json({ error: "Google Sheets credentials or Spreadsheet ID missing." });
+    }
     
-    // Loga no console para fins de debug (visível nos logs da Vercel)
-    console.log("FEEDBACK RECEBIDO:", body);
+    // Converte a string JSON da variável de ambiente de volta para um objeto
+    const credentials = JSON.parse(process.env.GCP_SERVICE_ACCOUNT_JSON);
+    
+    const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    // ----------------------------------------------------
+    // 2. INSERÇÃO DOS DADOS NA PLANILHA
+    // ----------------------------------------------------
+    const sheetName = 'Sheet1'; // Ou o nome da sua aba (ex: 'Feedback Log')
+    
+    // Os dados a serem inseridos, na ordem das colunas da sua planilha
+    const values = [
+      [
+        new Date(timestamp).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }), // Formato legível
+        feedback,
+        originalQuestion,
+        assistantResponse,
+        // Adicione aqui outros campos (messageId, etc.)
+      ],
+    ];
+
+    const resource = { values };
+    
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!A:E`, // Ajuste 'A:E' para a sua faixa de colunas
+      valueInputOption: 'USER_ENTERED',
+      resource,
+    });
+    
+    console.log("Feedback salvo com sucesso na Planilha do Google.");
 
     // Retorna 200 OK
-    return res.status(200).json({ success: true, received: body });
+    return res.status(200).json({ success: true, savedToSheet: true });
+
   } catch (err) {
-    console.error("Feedback server error", err);
+    console.error("Erro ao salvar feedback na Planilha:", err.message);
+    // Em caso de falha, retorna 500 para debug, mas mantém o frontend informado.
     return res.status(500).json({ error: "Server error", details: String(err?.message || err) });
   }
 }
