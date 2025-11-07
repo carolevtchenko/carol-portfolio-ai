@@ -1,7 +1,6 @@
 // Arquivo: api/feedback.js
 import { google } from 'googleapis';
 
-// Coloque o ID da sua Planilha no Vercel como uma variável de ambiente SHEET_ID
 const SPREADSHEET_ID = process.env.SHEET_ID; 
 
 export default async function handler(req, res) {
@@ -16,7 +15,7 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: "Method Not Allowed" });
     }
 
-    // --- Auth do Assistente (mantida por segurança)
+    // --- Auth do Assistente
     const expected = `Bearer ${process.env.AUTH_TOKEN}`;
     if (!process.env.AUTH_TOKEN || (req.headers.authorization || "") !== expected) {
       return res.status(401).json({ error: "Unauthorized" });
@@ -25,22 +24,22 @@ export default async function handler(req, res) {
     // --- Parse body
     const body = req.body;
     
+    // ⚠️ ATUALIZADO: messageId adicionado à desestruturação
     const {
       feedback,
       assistantResponse,
       originalQuestion,
       timestamp,
-      // ... messageId, etc.
+      messageId, // <-- AGORA INCLUÍDO
     } = body;
 
     // ----------------------------------------------------
-    // 1. AUTENTICAÇÃO COM A CHAVE JSON DA CONTA DE SERVIÇO
+    // 1. AUTENTICAÇÃO
     // ----------------------------------------------------
     if (!process.env.GCP_SERVICE_ACCOUNT_JSON || !SPREADSHEET_ID) {
         return res.status(500).json({ error: "Google Sheets credentials or Spreadsheet ID missing." });
     }
     
-    // Converte a string JSON da variável de ambiente de volta para um objeto
     const credentials = JSON.parse(process.env.GCP_SERVICE_ACCOUNT_JSON);
     
     const auth = new google.auth.GoogleAuth({
@@ -53,24 +52,25 @@ export default async function handler(req, res) {
     // ----------------------------------------------------
     // 2. INSERÇÃO DOS DADOS NA PLANILHA
     // ----------------------------------------------------
-    const sheetName = 'Sheet1'; // Ou o nome da sua aba (ex: 'Feedback Log')
+    const sheetName = 'Feedback Log'; // Ajuste este nome, se necessário
     
-    // Os dados a serem inseridos, na ordem das colunas da sua planilha
+    // ⚠️ ATUALIZADO: messageId adicionado como o quinto valor (coluna E)
     const values = [
       [
-        new Date(timestamp).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }), // Formato legível
+        new Date(timestamp).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }), 
         feedback,
         originalQuestion,
         assistantResponse,
-        // Adicione aqui outros campos (messageId, etc.)
+        messageId, // <-- NOVO VALOR A SER INSERIDO
       ],
     ];
 
     const resource = { values };
     
+    // O range 'A:E' agora mapeia para as 5 colunas acima
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${sheetName}!A:E`, // Ajuste 'A:E' para a sua faixa de colunas
+      range: `${sheetName}!A:E`, 
       valueInputOption: 'USER_ENTERED',
       resource,
     });
@@ -82,7 +82,6 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error("Erro ao salvar feedback na Planilha:", err.message);
-    // Em caso de falha, retorna 500 para debug, mas mantém o frontend informado.
     return res.status(500).json({ error: "Server error", details: String(err?.message || err) });
   }
 }
