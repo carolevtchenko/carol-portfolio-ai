@@ -69,17 +69,38 @@ ${historyTxt || "User: Hi!"}
     let data;
     try { data = raw ? JSON.parse(raw) : {}; } catch { data = { raw }; }
 
+    // ------------------------------------------------------------------
+    // ⬇️ TRATAMENTO DE ERROS COM MENSAGENS AMIGÁVEIS (INGLÊS) ⬇️
+    // ------------------------------------------------------------------
     if (!r.ok) {
-      // loga no servidor (aparece nos logs da Vercel)
-      console.error("Gemini v1 error", { status: r.status, statusText: r.statusText, body: raw });
-      return res.status(500).json({
-        error: "Gemini error",
-        status: r.status,
-        statusText: r.statusText,
-        details: raw || data
-      });
-    }
+        console.error("Gemini v1 error", { status: r.status, statusText: r.statusText, body: raw });
 
+        let userFriendlyError;
+        
+        switch (r.status) {
+            case 400: // Bad Request, Argument Blocked, or Payload Too Large
+                userFriendlyError = "Your question was blocked due to safety reasons or is too long. Please try rephrasing it.";
+                break;
+            case 429: // Rate Limit Exceeded
+                userFriendlyError = "I'm sorry, the model for this AI assistant is busy right now. Please try sending your question again in a few seconds.";
+                break;
+            case 503: // Service Unavailable (Overloaded)
+                userFriendlyError = "I'm sorry, the AI service is temporarily overloaded. Please try sending your question again in a few moments.";
+                break;
+            default: // Other errors (401, 500, 504, etc.)
+                userFriendlyError = "An unexpected internal error occurred. My apologies, please try sending your message again.";
+        }
+        
+        // Retorna a mensagem amigável no campo 'error' para ser exibida no front-end
+        return res.status(500).json({
+            error: userFriendlyError, 
+            status: r.status,
+            statusText: r.statusText,
+            details: raw || data // Detalhes técnicos para log
+        });
+    }
+    // ------------------------------------------------------------------
+    
     const reply =
       data?.candidates?.[0]?.content?.parts?.map(p => p?.text).filter(Boolean).join("\n") ||
       "(no reply)";
@@ -87,6 +108,6 @@ ${historyTxt || "User: Hi!"}
     return res.status(200).json({ reply });
   } catch (err) {
     console.error("Server error", err);
-    return res.status(500).json({ error: "Server error", details: String(err?.message || err) });
+    return res.status(500).json({ error: "An unexpected internal error occurred. My apologies, please try sending your message again.", details: String(err?.message || err) });
   }
 }
