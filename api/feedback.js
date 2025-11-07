@@ -52,7 +52,7 @@ export default async function handler(req, res) {
     // ----------------------------------------------------
     // 2. INSERÇÃO DOS DADOS NA PLANILHA
     // ----------------------------------------------------
-    const sheetName = 'Feedback Log'; // Ajuste este nome, se necessário
+    const sheetName = 'Sheet1'; // Ajuste este nome, se necessário
     
     // ⚠️ ATUALIZADO: messageId adicionado como o quinto valor (coluna E)
     const values = [
