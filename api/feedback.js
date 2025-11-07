@@ -1,13 +1,16 @@
+// Arquivo: api/feedback.js
+import { google } from 'googleapis';
+
+// Certifique-se de que SHEET_ID está configurado nas variáveis de ambiente do Vercel
+const SPREADSHEET_ID = process.env.SHEET_ID; 
+
 export default async function handler(req, res) {
   try {
-    // --- CORS (logo no início)
+    // --- CORS e Método
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.setHeader("Access-Control-Max-Age", "600");
     if (req.method === "OPTIONS") return res.status(204).end();
-
-    // --- Apenas POST
     if (req.method !== "POST") {
       res.setHeader("Allow", "POST");
       return res.status(405).json({ error: "Method Not Allowed" });
@@ -20,94 +23,70 @@ export default async function handler(req, res) {
     }
 
     // --- Parse body
-    let body = {};
-    try {
-      body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
-    } catch {
-      return res.status(400).json({ error: "Invalid JSON body" });
-    }
-
+    const body = req.body;
+    
+    // Desestrutura os 5 campos (certifique-se de que o payload do front-end é enviado corretamente)
     const {
-      messages = [],
-      systemPrompt = "You are Carol Levtchenko’s professional portfolio assistant. Answer in English unless asked otherwise.",
-      knowledge = "",
-      // ⚠️ no v1 NÃO usar prefixo "models/"
-      model = "gemini-2.5-flash",
-      temperature = 0.7,
-      topP = 0.95,
-      topK = 40,
-      maxOutputTokens = 1024,
+      feedback,
+      assistantResponse,
+      originalQuestion,
+      timestamp,
+      messageId, 
     } = body;
 
-    // --- Concatena system + knowledge + histórico em um único prompt (compatível com v1)
-    const historyTxt = (messages || [])
-      .map(m => `${m.role === "assistant" ? "Assistant" : "User"}: ${m.content}`)
-      .join("\n");
-
-    const fullPrompt =
-`${systemPrompt}
-${knowledge ? `\n### KNOWLEDGE\n${String(knowledge).slice(0, 100000)}` : ""}
-### HISTORY
-${historyTxt || "User: Hi!"}
-`;
-
-    // --- Chamada v1 (query param ?key=)
-    const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
-
-    const payload = {
-      contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
-      generationConfig: { temperature, topP, topK, maxOutputTokens }
-    };
-
-    const r = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+    // ----------------------------------------------------
+    // 1. VERIFICAÇÃO DE CREDENCIAIS E AUTENTICAÇÃO
+    // ----------------------------------------------------
+    if (!process.env.GCP_SERVICE_ACCOUNT_JSON || !SPREADSHEET_ID) {
+        // Loga um erro claro no Vercel se as variáveis estiverem faltando
+        console.error("ERRO: Credenciais ou ID da Planilha faltando.");
+        return res.status(500).json({ error: "Google Sheets credentials or Spreadsheet ID missing." });
+    }
+    
+    // Converte a string JSON da variável de ambiente de volta para um objeto
+    const credentials = JSON.parse(process.env.GCP_SERVICE_ACCOUNT_JSON);
+    
+    const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
 
-    const raw = await r.text();
-    let data;
-    try { data = raw ? JSON.parse(raw) : {}; } catch { data = { raw }; }
+    const sheets = google.sheets({ version: 'v4', auth });
 
-    // ------------------------------------------------------------------
-    // ⬇️ TRATAMENTO DE ERROS COM MENSAGENS AMIGÁVEIS (INGLÊS) ⬇️
-    // ------------------------------------------------------------------
-    if (!r.ok) {
-        console.error("Gemini v1 error", { status: r.status, statusText: r.statusText, body: raw });
-
-        let userFriendlyError;
-        
-        switch (r.status) {
-            case 400: // Bad Request, Argument Blocked, or Payload Too Large
-                userFriendlyError = "Your question was blocked due to safety reasons or is too long. Please try rephrasing it.";
-                break;
-            case 429: // Rate Limit Exceeded
-                userFriendlyError = "I'm sorry, the model for this AI assistant is busy right now. Please try sending your question again in a few seconds.";
-                break;
-            case 503: // Service Unavailable (Overloaded)
-                userFriendlyError = "I'm sorry, the AI service is temporarily overloaded. Please try sending your question again in a few moments.";
-                break;
-            default: // Other errors (401, 500, 504, etc.)
-                userFriendlyError = "An unexpected internal error occurred. My apologies, please try sending your message again.";
-        }
-        
-        // Retorna a mensagem amigável no campo 'error' para ser exibida no front-end
-        return res.status(500).json({
-            error: userFriendlyError, 
-            status: r.status,
-            statusText: r.statusText,
-            details: raw || data // Detalhes técnicos para log
-        });
-    }
-    // ------------------------------------------------------------------
+    // ----------------------------------------------------
+    // 2. INSERÇÃO DOS DADOS NA PLANILHA
+    // ----------------------------------------------------
+    // ⚠️ ATUALIZE O NOME DA ABA SE 'Feedback Log' NÃO FOR O NOME EXATO
+    const sheetName = 'Sheet1'; 
     
-    const reply =
-      data?.candidates?.[0]?.content?.parts?.map(p => p?.text).filter(Boolean).join("\n") ||
-      "(no reply)";
+    // Os dados a serem inseridos, na ordem das colunas da sua planilha (A, B, C, D, E)
+    const values = [
+      [
+        new Date(timestamp).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }), // Coluna A: Timestamp formatado
+        feedback,                 // Coluna B: Yes/No
+        originalQuestion,         // Coluna C: Pergunta Original
+        assistantResponse,        // Coluna D: Resposta do Assistente
+        messageId,                // Coluna E: Message ID
+      ],
+    ];
 
-    return res.status(200).json({ reply });
+    const resource = { values };
+    
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${sheetName}!A:E`, // Faixa que cobre as 5 colunas acima
+      valueInputOption: 'USER_ENTERED',
+      resource,
+    });
+    
+    console.log("Feedback salvo com sucesso na Planilha do Google.");
+
+    // Retorna 200 OK
+    return res.status(200).json({ success: true, savedToSheet: true });
+
   } catch (err) {
-    console.error("Server error", err);
-    return res.status(500).json({ error: "An unexpected internal error occurred. My apologies, please try sending your message again.", details: String(err?.message || err) });
+    console.error("Erro fatal ao salvar feedback na Planilha:", err.message);
+    // Em caso de falha, retorna 500 para debug.
+    return res.status(500).json({ error: "Server error: Failed to log feedback", details: String(err?.message || err) });
   }
 }
