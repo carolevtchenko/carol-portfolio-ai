@@ -1,0 +1,1738 @@
+import * as React from "react"
+import { addPropertyControls, ControlType } from "framer"
+
+type Message = {
+    id: string
+    role: "user" | "assistant" | "system"
+    content: string
+    createdAt: number
+}
+
+const uid = () => Math.random().toString(36).slice(2)
+const dotKeyframes = `@keyframes blink { 0%{opacity:.2} 20%{opacity:1} 100%{opacity:.2} }`
+
+// Função para renderizar texto com formatação Markdown (negrito com **)
+function renderMarkdownText(text: string) {
+    if (!text) return null
+    const parts = text.split('**')
+    return parts.map((part, index) => {
+        // Partes com índice ímpar (1, 3, 5, ...) estão entre ** **, então ficam em negrito
+        if (index % 2 === 1) {
+            // Garante que o texto em negrito use uma key única e a tag <strong>
+            return <strong key={index}>{part}</strong>
+        }
+        // Partes com índice par (0, 2, 4, ...) são texto normal
+        return <React.Fragment key={index}>{part}</React.Fragment>
+    })
+}
+
+// ------- Icon Factory (dropdown -> SVG) -------
+type IconName =
+    | "none"
+    | "download"
+    | "mail"
+    | "send"
+    | "share"
+    | "file"
+    | "printer"
+    | "arrowUpRight"
+    | "sparkles" // AI-style sparkles
+    | "bot" // simple bot head
+    | "mailAlt"
+    | "thumbUp" 
+    | "thumbDown" 
+
+function Icon({
+    name,
+    size = 14,
+    color = "currentColor",
+}: {
+    name: IconName
+    size?: number
+    color?: string
+}) {
+    if (!name || name === "none") return null
+    const p = {
+        width: size,
+        height: size,
+        viewBox: "0 0 24 24",
+        fill: "none",
+        stroke: color,
+        strokeWidth: 1.8,
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+    } as any
+
+    switch (name) {
+        case "download":
+            return (
+                <svg {...p}>
+                    <path d="M12 3v12" />
+                    <path d="m7 10 5 5 5-5" />
+                    <path d="M5 21h14" />
+                </svg>
+            )
+        case "mail":
+            return (
+                <svg {...p}>
+                    <path d="M4 6h16v12H4z" />
+                    <path d="m22 6-10 7L2 6" />
+                </svg>
+            )
+        case "send":
+            return (
+                <svg {...p}>
+                    <path d="m22 2-7 20-4-9-9-4Z" />
+                    <path d="M22 2 11 13" />
+                </svg>
+            )
+        case "share":
+            return (
+                <svg {...p}>
+                    <path d="M4 12v8a2 2 0 0 0 2 2h12" />
+                    <path d="M16 6l-4-4-4 4" />
+                    <path d="M12 2v14" />
+                </svg>
+            )
+        case "file":
+            return (
+                <svg {...p}>
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12V8z" />
+                    <path d="M14 2v6h6" />
+                </svg>
+            )
+        case "printer":
+            return (
+                <svg {...p}>
+                    <path d="M6 9V2h12v7" />
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3v5a2 2 0 0 1-2 2h-2" />
+                    <path d="M6 14h12v8H6z" />
+                </svg>
+            )
+        case "arrowUpRight":
+            return (
+                <svg {...p}>
+                    <path d="M7 17 17 7" />
+                    <path d="M7 7h10v10" />
+                </svg>
+            )
+        case "sparkles":
+            return (
+                <svg {...p}>
+                    <path d="M5 3l1.5 3L10 7l-3.5 1L5 11l-1.5-3L0 7l3.5-1L5 3z" />
+                    <path d="M14 2l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z" />
+                    <path d="M19 12l1.2 2.4L23 15l-2.3 1.6L21 19l-2-1.2-2 1.2.3-2.4L15 15l2.8-.6L19 12z" />
+                </svg>
+            )
+        case "bot":
+            return (
+                <svg {...p}>
+                    <rect x="3" y="7" width="18" height="12" rx="3" />
+                    <circle cx="9" cy="13" r="1.5" />
+                    <circle cx="15" cy="13" r="1.5" />
+                    <path d="M12 3v2" />
+                </svg>
+            )
+        case "mailAlt":
+            return (
+                <svg {...p}>
+                    <rect x="3" y="5" width="18" height="14" rx="2" />
+                    <path d="M3 7l9 6 9-6" />
+                </svg>
+            )
+        case "thumbUp":
+            // Ícone Material Design Thumb Up
+            return (
+                <svg {...p}>
+                    <path d="M7 10v10h11c.88 0 1.69-.47 2.11-1.2l3-5.32c.21-.37.39-.77.39-1.28V11c0-1.65-1.35-3-3-3H13l1.8-4.4c.14-.36.2-.75.2-1.1v-.1c0-.85-.56-1.54-1.32-1.84L12 1 8 8V10h-1c-.55 0-1 .45-1 1z" />
+                </svg>
+            )
+        case "thumbDown":
+            // Ícone Material Design Thumb Down
+            return (
+                <svg {...p}>
+                    <path d="M17 14V4H6c-.88 0-1.69.47-2.11 1.2l-3 5.32c-.21.37-.39.77-.39 1.28V13c0 1.65 1.35 3 3 3H11l-1.8 4.4c-.14.36-.2.75-.2 1.1v.1c0 .85.56 1.54 1.32 1.84L12 23l4-7V14h1c.55 0 1-.45 1-1z" />
+                </svg>
+            )
+        default:
+            return null
+    }
+}
+
+export default function AIAssistant(props: any) {
+    const {
+        title,
+        placeholder,
+        starter1,
+        starter2,
+        starter3,
+        systemPrompt,
+        knowledge,
+        serverEndpoint,
+        serverAuthHeader,
+        useOpenAI,
+        openaiKey,
+        openaiModel,
+        
+        // Endpoint para feedback
+        feedbackEndpoint,
+
+        // visual
+        bgColor,
+        textColor,
+        tipColor,
+        carolBubbleBg,
+        titleFont,
+        bodyFont,
+        buttonsFont,
+        chatFont,
+        chatFontSize,
+        starterFont,
+        starterFontSize,
+
+        // header buttons
+        btn1Text,
+        btn1IconName,
+        btn1Bg,
+        btn1Color,
+        btn2Text,
+        btn2IconName,
+        btn2Bg,
+        btn2Color,
+
+        // send button
+        sendText,
+        sendIconName,
+
+        // email
+        emailEndpoint,
+        emailDefaultTo,
+
+        // NEW props
+        showBtn1Label,
+        showBtn2Label,
+        showSendLabel,
+        placeholderFontSize,
+        showTitleIcon,
+        titleIconName,
+        titleFontSize,
+        titleIconSize,
+
+        // author + AI icon
+        authorFont,
+        authorFontSize,
+        aiIconSize,
+
+        // tamanhos de ícones controláveis
+        headerIconSize,
+        sendIconSize,
+    } = props
+
+    const [messages, setMessages] = React.useState<Message[]>(() =>
+        systemPrompt?.trim()
+            ? [
+                  {
+                      id: uid(),
+                      role: "system",
+                      content: systemPrompt.trim(),
+                      createdAt: Date.now(),
+                  },
+              ]
+            : []
+    )
+    const [input, setInput] = React.useState("")
+    const [isThinking, setIsThinking] = React.useState(false)
+    const [visibleTipCount, setVisibleTipCount] = React.useState(0)
+    const [showStartersContainer, setShowStartersContainer] = React.useState(false)
+    const scrollRef = React.useRef<HTMLDivElement>(null)
+    const rootRef = React.useRef<HTMLDivElement>(null)
+    const [isInView, setIsInView] = React.useState(false)
+    const hasAnimated = React.useRef(false) // Trava
+
+    // Estados para feedback e contagem de perguntas
+    const [userQuestionCount, setUserQuestionCount] = React.useState(0)
+    const [showFeedbackPrompt, setShowFeedbackPrompt] = React.useState<string | null>(null)
+
+    const starters = [starter1, starter2, starter3].filter(Boolean) as string[]
+    const visibleMessages = messages.filter((m) => m.role !== "system")
+
+    React.useEffect(() => {
+        scrollRef.current?.scrollTo({
+            top: scrollRef.current.scrollHeight,
+            behavior: "smooth",
+        })
+    }, [messages, isThinking])
+
+    // Observer para gatilho de scroll
+    React.useEffect(() => {
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setIsInView(true)
+                    observer.unobserve(entry.target)
+                }
+            },
+            { threshold: 0.1 }
+        )
+
+        const currentRef = rootRef.current
+        if (currentRef) {
+            observer.observe(currentRef)
+        }
+
+        return () => {
+            if (currentRef) {
+                observer.unobserve(currentRef)
+            }
+        }
+    }, []) // Roda na montagem
+
+    // Lógica do timer
+    React.useEffect(() => {
+        let msgTimer: any = null
+        let starterTimer1: any = null
+        let starterTimer2: any = null
+        let starterTimer3: any = null
+
+        if (isInView && !hasAnimated.current) {
+            hasAnimated.current = true
+
+            const isFirstLoad =
+                messages.filter((m) => m.role !== "system").length === 0
+
+            if (isFirstLoad) {
+                setIsThinking(true)
+
+                const carolMsg: Message = {
+                    id: "carol-intro",
+                    role: "assistant",
+                    content:
+                        "I'm glad you got to meet my assistant. I created it from scratch using AI, my knowledge in both back-end and front-end development and desire to improve your experience in my portfolio better. As this is my first AI assistant, bare in mind that I'm still testing it.",
+                    createdAt: Date.now(),
+                }
+
+                msgTimer = setTimeout(() => {
+                    setIsThinking(false)
+                    setMessages((prevMessages) => [...prevMessages, carolMsg])
+                    setShowStartersContainer(true)
+
+                    const tipDelay = 400
+
+                    starterTimer1 = setTimeout(() => {
+                        setVisibleTipCount(1)
+                    }, 800)
+
+                    starterTimer2 = setTimeout(() => {
+                        setVisibleTipCount(2)
+                    }, 800 + tipDelay)
+
+                    starterTimer3 = setTimeout(() => {
+                        setVisibleTipCount(3)
+                    }, 800 + tipDelay * 2)
+                }, 1500)
+            }
+        }
+
+        return () => {
+            if (msgTimer) clearTimeout(msgTimer)
+            if (starterTimer1) clearTimeout(starterTimer1)
+            if (starterTimer2) clearTimeout(starterTimer2)
+            if (starterTimer3) clearTimeout(starterTimer3)
+        }
+    }, [isInView])
+
+    // Função para lidar com o feedback "Yes" / "No"
+    async function handleFeedback(response: "Yes" | "No") {
+        const feedbackPromptId = showFeedbackPrompt // ID da pergunta 'Was this useful?'
+        setShowFeedbackPrompt(null) // Esconde os botões imediatamente
+
+        const userMsg: Message = {
+            id: uid(),
+            role: "user",
+            content: response === "Yes" ? "👍 Yes" : "👎 No", // Registra o ícone e a resposta no histórico
+            createdAt: Date.now(),
+        }
+        
+        // 1. Encontrar a resposta da IA avaliada
+        const messageIndex = visibleMessages.findIndex(m => m.id === feedbackPromptId);
+        let previousMessageContent = 'N/A';
+        let originalQuestionContent = 'N/A';
+
+        // A mensagem de IA avaliada é a penúltima mensagem. A antepenúltima é a pergunta do usuário.
+        if (messageIndex > 0) {
+            const assistantResponseMsg = visibleMessages[messageIndex - 1];
+            previousMessageContent = assistantResponseMsg?.content || 'N/A';
+            
+            // Tenta encontrar a pergunta original do usuário (anterior à resposta da IA)
+            const originalQuestionIndex = visibleMessages.findIndex(
+                (m, idx) => idx < messageIndex - 1 && m.role === 'user' && visibleMessages.slice(idx + 1, messageIndex).every(msg => msg.role !== 'user')
+            );
+            
+            if(originalQuestionIndex !== -1) {
+                 originalQuestionContent = visibleMessages[originalQuestionIndex].content;
+            } else if (messageIndex > 1 && visibleMessages[messageIndex - 2]?.role === 'user') {
+                originalQuestionContent = visibleMessages[messageIndex - 2].content;
+            }
+        }
+        
+        // 2. Montar o payload
+        const payload = {
+            feedback: response,
+            messageId: feedbackPromptId,
+            assistantResponse: previousMessageContent,
+            originalQuestion: originalQuestionContent, // Inclui a pergunta que gerou a resposta
+            timestamp: Date.now(),
+            // Adicionar user_id ou session_id aqui, se disponível no Framer
+        };
+
+        // 3. Enviar feedback para o endpoint (usando a mesma autenticação)
+        const targetEndpoint = feedbackEndpoint || `${serverEndpoint.replace('/api/ask', '')}/api/feedback`; // Fallback: usa o domínio do serverEndpoint e muda o path.
+
+        try {
+            await fetch(targetEndpoint, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(serverAuthHeader ? JSON.parse(serverAuthHeader) : {}),
+                },
+                body: JSON.stringify(payload),
+            });
+            // console.log("Feedback enviado com sucesso:", payload);
+
+        } catch (err: any) {
+            console.error("Erro ao enviar feedback:", err);
+            // Adiciona uma mensagem de erro temporária se falhar
+             setMessages((m) => [
+                ...m,
+                {
+                    id: uid(),
+                    role: "assistant",
+                    content: `⚠️ **Error:** Failed to register feedback. Please try again.`,
+                    createdAt: Date.now(),
+                },
+            ]);
+        } finally {
+            // Adiciona a resposta de Yes/No do usuário ao histórico
+            setMessages((m) => [...m, userMsg]);
+            
+            // ⬇️ BLOCO REESTABELECIDO: BOLHA DE AGRADECIMENTO ⬇️
+            const thanksMsg = {
+                id: uid(),
+                role: "assistant",
+                content: "Thanks for your feedback!",
+                createdAt: Date.now(),
+            };
+
+            // Adiciona a bolha de agradecimento após um pequeno atraso (500ms)
+            setTimeout(() => {
+                setMessages((m) => [...m, thanksMsg]);
+            }, 500); 
+            // ⬆️ FIM DO BLOCO REESTABELECIDO ⬆️
+            
+            setIsThinking(false);
+        }
+    }
+
+    async function send(promptText?: string) {
+        if (visibleTipCount > 0) setVisibleTipCount(0)
+        if (showStartersContainer) setShowStartersContainer(false)
+
+        const text = (promptText ?? input).trim()
+        if (!text) return
+
+        const newUserQuestionCount = userQuestionCount + 1
+
+        const userMsg: Message = {
+            id: uid(),
+            role: "user",
+            content: text,
+            createdAt: Date.now(),
+        }
+        setMessages((m) => [...m, userMsg])
+        setInput("")
+        setIsThinking(true)
+
+        if (showFeedbackPrompt) setShowFeedbackPrompt(null)
+
+        try {
+            const history = messages
+                .filter((m) => m.role !== "system")
+                .concat(userMsg)
+            let assistantText = ""
+
+            if (serverEndpoint) {
+                const res = await fetch(serverEndpoint, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        ...(serverAuthHeader
+                            ? JSON.parse(serverAuthHeader)
+                            : {}),
+                    },
+                    body: JSON.stringify({
+                        messages: [
+                            ...(systemPrompt
+                                ? [{ role: "system", content: systemPrompt }]
+                                : []),
+                            ...history.map(({ role, content }) => ({
+                                role,
+                                content,
+                            })),
+                        ],
+                        knowledge,
+                    }),
+                })
+                // Se houver erro de API (400, 429, 503), o back-end retorna a mensagem amigável no campo 'error'.
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    throw new Error(errorData.error || `Server error ${res.status}`);
+                }
+                const data = await res.json()
+                assistantText = data.reply ?? JSON.stringify(data)
+            } else if (useOpenAI && openaiKey) {
+                const res = await fetch(
+                    "https://api.openai.com/v1/chat/completions",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${openaiKey}`,
+                        },
+                        body: JSON.stringify({
+                            model: openaiModel || "gpt-4o-mini",
+                            messages: [
+                                ...(systemPrompt
+                                    ? [
+                                          {
+                                              role: "system",
+                                              content: systemPrompt,
+                                          },
+                                      ]
+                                    : []),
+                                ...history.map(({ role, content }) => ({
+                                    role,
+                                    content,
+                                })),
+                            ],
+                            temperature: 0.2,
+                        }),
+                    }
+                )
+                if (!res.ok) throw new Error(`OpenAI error ${res.status}`)
+                const data = await res.json()
+                assistantText = data.choices?.[0]?.message?.content ?? ""
+            } else {
+                assistantText =
+                    "No **serverEndpoint** configured. Please add one in the component props."
+            }
+
+            setMessages((m) => [
+                ...m,
+                {
+                    id: uid(),
+                    role: "assistant",
+                    content: assistantText,
+                    createdAt: Date.now(),
+                },
+            ])
+            
+            // ⬇️ LÓGICA DE PREVENÇÃO DE FEEDBACK INÚTIL ⬇️
+            // Verifica se a resposta é vazia ou uma recusa conhecida (para evitar feedback inútil)
+            const isUnhelpfulResponse = !assistantText.trim() ||
+                                        assistantText.includes("I cannot answer this") ||
+                                        assistantText.includes("No **serverEndpoint** configured");
+            
+            // O feedback é acionado APENAS se:
+            // 1. O número da pergunta for um múltiplo de 4 E
+            // 2. A resposta da IA não for considerada inútil (vazia ou recusa)
+            if (newUserQuestionCount % 4 === 0 && !isUnhelpfulResponse) {
+                const feedbackPromptId = `feedback-${uid()}`
+                const feedbackQuestionMsg: Message = {
+                    id: feedbackPromptId,
+                    role: "assistant",
+                    content: "**Was this response useful?**",
+                    createdAt: Date.now(),
+                }
+
+                setTimeout(() => {
+                    setMessages((m) => [...m, feedbackQuestionMsg])
+                    setShowFeedbackPrompt(feedbackPromptId)
+                }, 600)
+            }
+
+            // Atualiza o contador
+            setUserQuestionCount(newUserQuestionCount)
+            // ⬆️ FIM DA LÓGICA DE PREVENÇÃO DE FEEDBACK INÚTIL ⬆️
+            
+        } catch (err: any) {
+            setMessages((m) => [
+                ...m,
+                {
+                    id: uid(),
+                    role: "assistant",
+                    // Se a requisição falhou, o erro contém a mensagem amigável do backend.
+                    content: `⚠️ **Error:** ${err?.message ?? err}`,
+                    createdAt: Date.now(),
+                },
+            ])
+        } finally {
+            setIsThinking(false)
+        }
+    }
+
+    // Função auxiliar para formatar o histórico da conversa para o e-mail.
+    function formatConversationHistory(messages: Message[]) {
+        // Exclui system, intro, e feedback messages (o backend não precisa analisar o feedback)
+        const filteredMessages = messages.filter(m => 
+            m.role !== "system" && 
+            m.id !== "carol-intro" &&
+            m.content !== "👍 Yes" &&
+            m.content !== "👎 No" &&
+            m.content !== "Thanks for your feedback!"
+        );
+
+        return filteredMessages.map(m => {
+            const author = m.role === "user" ? "You" : "Carol's Assistant";
+            // Formato de data/hora específico para o corpo do e-mail
+            const date = new Date(m.createdAt).toLocaleDateString("en-US", {
+                year: 'numeric', month: 'short', day: 'numeric', 
+                hour: '2-digit', minute: '2-digit' 
+            });
+            
+            // Converte Markdown ** para <b> para o corpo do e-mail
+            const content = m.content.replaceAll("**", "<b>").replaceAll("</b>", "</b>");
+
+            return `\n\n[${date}] ${author}:\n${content}`;
+        }).join('');
+    }
+
+    // Função exportPDF (mantida, mas atualizada)
+    function exportPDF() {
+        // Função atualizada para usar formatação de bolha no PDF (da conversa anterior)
+        const printableMessages = visibleMessages
+            .filter((m) => m.id !== "carol-intro")
+            .map((m) => {
+                const isUser = m.role === "user"
+                // Converte Markdown ** para <b> para o PDF
+                const content = m.content.replaceAll("**", "<b>").replaceAll("</b>", "</b>")
+                const alignClass = isUser ? 'user-msg' : 'assistant-msg'
+                const name = isUser ? 'You' : "Carol's Assistant"
+                const meta = formatMeta(m.createdAt).replace(' · ', ' | ') // Reutiliza e formata a data
+
+                return `
+                    <div class="msg-row ${alignClass}">
+                        <div class="msg-header">
+                            ${name} <span class="msg-meta">• ${meta}</span>
+                        </div>
+                        <div class="msg-bubble">${content}</div>
+                    </div>
+                `
+            })
+            .join('')
+            
+        const html = `<!doctype html><html><head><meta charset="utf-8"/>
+      <title>Conversation Export</title>
+      <style>
+        body { 
+            font-family: ${bodyFont}, sans-serif; 
+            padding: 32px; 
+            color: #1a1a1a; 
+            font-size: 14px;
+        }
+        h1 { 
+            font-family: ${titleFont}, sans-serif; 
+            font-size: 24px; 
+            margin: 0 0 32px;
+            color: #000;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 8px;
+        }
+        .msg-row {
+            display: flex;
+            margin: 12px 0;
+            max-width: 80%; /* Limits bubble width */
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .msg-row.user-msg {
+            align-items: flex-end;
+            margin-left: auto;
+        }
+        .msg-header {
+            font-size: 11px;
+            font-weight: 500;
+            opacity: 0.8;
+            margin-bottom: 4px;
+            color: #555;
+            padding: 0 4px;
+            line-height: 1;
+        }
+        .msg-meta {
+            font-weight: 400;
+            font-size: 10px;
+            opacity: 0.7;
+        }
+        .user-msg .msg-header {
+            text-align: right;
+        }
+        .msg-bubble {
+            padding: 10px 14px;
+            border-radius: 18px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-width: 100%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .user-msg .msg-bubble {
+            background: #1f6feb; /* Cor do usuário (azul Framer) */
+            color: white;
+            border-bottom-right-radius: 4px;
+            box-shadow: 0 1px 3px rgba(31, 107, 235, 0.2);
+        }
+        .assistant-msg .msg-bubble {
+            background: #f0f0f0; /* Cor do assistente (cinza claro) */
+            color: #1a1a1a;
+            border-bottom-left-radius: 4px;
+        }
+        b { font-weight: 700; }
+        /* Otimização de impressão */
+        @media print {
+            body { background: white; }
+            .msg-bubble { box-shadow: none; border: 1px solid #ddd; }
+            .user-msg .msg-bubble { border-color: #1f6feb; }
+            .assistant-msg .msg-bubble { border-color: #e0e0e0; }
+        }
+      </style>
+    </head><body>
+      <h1>Conversation Export - Carol's AI Assistant</h1>
+      <div id="chat-content">${printableMessages}</div>
+      <script>window.onload = () => setTimeout(()=>window.print(), 300)</script>
+    </body></html>`
+        const blob = new Blob([html], { type: "text/html" })
+        const url = URL.createObjectURL(blob)
+        window.open(url, "_blank")
+    }
+    // ⬆️ FUNÇÃO exportPDF ATUALIZADA ⬆️
+
+    // ⬇️ FUNÇÃO sendEmail TOTALMENTE ATUALIZADA ⬇️
+    async function sendEmail() {
+        // 1. Prompt para e-mail do destinatário e nome do usuário
+        const to = prompt("Send to email:", emailDefaultTo || "");
+        if (!to) return;
+
+        const name = prompt("Please enter your name (for the email greeting):", "");
+        const userName = name || "there"; 
+        
+        // Mensagens completas (excluindo apenas a mensagem 'system')
+        const fullConversation = messages.filter(m => m.role !== "system");
+
+        // 2. Formatar o histórico cronológico para inserção direta no e-mail
+        const formattedHistory = formatConversationHistory(fullConversation);
+        
+        // 3. Extrair histórico RAW para o LLM fazer a sumarização dos tópicos
+        const rawTextHistory = fullConversation
+            .filter(m => m.id !== "carol-intro" && m.content !== "👍 Yes" && m.content !== "👎 No" && m.content !== "Thanks for your feedback!")
+            .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+            .join('\n');
+
+        // 4. Estrutura do corpo do e-mail com placeholder para o resumo da IA
+        const emailTemplate = 
+`Hello, ${userName}. 
+
+I see you just met my AI Assistant and she was answering with your questions concerning my career as a Product Designer. Check the highlights of your messaging below: 
+
+[[TOPIC_SUMMARY_PLACEHOLDER]]
+
+Here's the history of conversation you've had with my AI Assistant when visiting my portfolio as you asked for. 
+
+${formattedHistory}
+
+Thanks for stopping by and see you soon!
+
+Carol`;
+
+        // 5. Enviar dados para o backend para sumarização da IA e envio
+        try {
+            const res = await fetch(emailEndpoint || "/api/send-email", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    to_email: to, 
+                    user_name: userName,
+                    raw_conversation_text: rawTextHistory, // Para o LLM identificar os tópicos
+                    email_template: emailTemplate, // O template que o backend deve preencher
+                }),
+            });
+
+            if (!res.ok) throw new Error(`Email error ${res.status}`);
+            alert("Email sent ✅");
+        } catch (e: any) {
+            alert(`Failed to send email: ${e?.message ?? e}`);
+        }
+    }
+    // ⬆️ FUNÇÃO sendEmail TOTALMENTE ATUALIZADA ⬆️
+
+    const rootStyle: React.CSSProperties = {
+        "--bg": bgColor,
+        "--fg": textColor,
+    } as React.CSSProperties
+
+    // unique classes
+    const inputClass = React.useMemo(() => `ai-input-${uid()}`, [])
+    const blobClass = React.useMemo(() => `ai-blob-${uid()}`, [])
+
+    const _headerIcon = typeof headerIconSize === "number" ? headerIconSize : 14
+    const _sendIcon = typeof sendIconSize === "number" ? sendIconSize : 14
+
+    const headerBtnDim = _headerIcon + 28
+    const sendBtnDim = _sendIcon + 28
+
+    const isInputEmpty = input.trim() === ""
+
+    const hasAssistantResponse = messages.some(
+        (m) => m.role === "assistant" && m.id !== "carol-intro"
+    )
+
+    // estilos
+    const styles: Record<string, React.Properties<string | number>> = {
+        root: {
+            width: "100%",
+            height: "100%" as any,
+            display: "flex",
+            flexDirection: "column",
+            background: "var(--bg)",
+            color: "var(--fg)",
+            borderRadius: 16,
+            overflow: "hidden",
+            boxSizing: "border-box",
+            fontFamily: `${bodyFont}, ui-sans-serif, system-ui`,
+        },
+        header: {
+            display: "flex",
+            alignItems: "baseline",
+            justifyContent: "space-between",
+            padding: "16px 16px 24px 0",
+            borderBottom: "1px solid #FFFFFF",
+        },
+        titleRow: {
+            display: "inline-flex",
+            alignItems: "baseline",
+            gap: 4,
+            paddingBottom: 8,
+        },
+        title: {
+            fontSize: titleFontSize ?? 14,
+            fontWeight: 700,
+            opacity: 0.95,
+            fontFamily: `${titleFont}, ui-sans-serif, system-ui`,
+        },
+        actions: { display: "flex", gap: 8, alignItems: "center" },
+        actionBtn: (
+            _bg: string,
+            color: string,
+            withLabel: boolean = true
+        ): React.CSSProperties => ({
+            height: 32,
+            padding: withLabel ? "0 12px" : 0,
+            minWidth: withLabel ? undefined : 32,
+            borderRadius: 999,
+            background: "transparent",
+            color,
+            border: "none",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: withLabel ? 8 : 0,
+            cursor: "pointer",
+            fontSize: 12,
+            fontWeight: 600,
+            fontFamily: `${buttonsFont}, ui-sans-serif, system-ui`,
+        }),
+
+        scrollWrap: {
+            position: "relative",
+            flex: 1,
+            overflowY: "auto",
+            padding: "16px 16px 16px 0",
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+        },
+        bubbleRow: { display: "flex", gap: 8, alignItems: "flex-end" },
+        bubble: {
+            maxWidth: "85%", // Largura máxima para todas
+            padding: "10px 12px",
+            borderRadius: 16,
+            lineHeight: 1.4,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            fontSize: chatFontSize ?? 18,
+            fontFamily: `${chatFont || bodyFont}, ui-sans-serif, system-ui`,
+        },
+        user: { alignSelf: "flex-end", justifyContent: "flex-end" },
+        userBubble: {
+            background: "#1f6feb",
+            color: "white",
+            borderTopRightRadius: 4,
+            // Bolhas de usuário de largura menor
+        },
+        carolBubble: {
+            background: carolBubbleBg || "rgba(255,255,255,.15)",
+            color: "white",
+            borderTopLeftRadius: 4,
+            width: "100%", // Força largura total (85% do pai)
+        },
+        assistantBubble: {
+            background: "rgba(255,255,255,.08)",
+            color: "white",
+            borderTopLeftRadius: 4,
+            width: "100%", // Força largura total (85% do pai)
+        },
+        msgBlock: {
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+            gap: 4,
+        },
+
+        authorName: {
+            fontSize: authorFontSize ?? 14,
+            lineHeight: 1.2,
+            opacity: 1,
+            padding: "0 4px",
+            fontWeight: 600,
+            fontFamily: `${authorFont || bodyFont}, ui-sans-serif, system-ui`,
+        } as React.CSSProperties,
+
+        authorLeft: { alignSelf: "flex-start", textAlign: "left" },
+        authorRight: { alignSelf: "flex-end", textAlign: "right" },
+
+        authorMeta: {
+            opacity: 0.7,
+            fontWeight: 500,
+            fontSize: 11,
+        },
+
+        aiIconInline: {
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            lineHeight: 0,
+            opacity: 1,
+            marginRight: 0,
+            transform: "translateY(1px)", // Corrigido para alinhamento visual
+        } as React.CSSProperties,
+
+        authorRow: {
+            display: "inline-flex",
+            alignItems: "baseline",
+            gap: 2,
+            marginBottom: 4,
+            opacity: 0.8,
+            lineHeight: 1,
+        },
+
+        inputWrap: {
+            padding: "12px 16px 14px 0",
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+        },
+
+        row: { display: "flex", gap: 8, alignItems: "center" },
+        input: {
+            flex: 1,
+            height: 40,
+            border: "none",
+            background: "transparent",
+            color: "inherit",
+            outline: "none",
+            borderRadius: 0,
+            fontFamily: `${bodyFont}, ui-sans-serif, system-ui`,
+            fontSize: placeholderFontSize ?? 14,
+            paddingRight: 44,
+            transform: "translateY(-2px)",
+        },
+
+        msgWrapUser: {
+            display: "inline-flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            alignSelf: "flex-end",
+            maxWidth: "100%",
+            gap: 4,
+        },
+
+        msgWrapAssistant: {
+            display: "inline-flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+            alignSelf: "flex-start",
+            maxWidth: "100%",
+            gap: 4,
+        },
+
+        inputField: {
+            position: "relative",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            borderBottom: `1px solid color-mix(in srgb, ${textColor} 40%, transparent)`,
+            paddingBottom: 4,
+        },
+
+        sendInside: (disabled: boolean): React.CSSProperties => ({
+            position: "absolute",
+            right: 6,
+            top: "50%",
+            transform: "translateY(-70%)",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            height: sendBtnDim,
+            width: sendBtnDim,
+            borderRadius: 999,
+            border: "none",
+            background: "transparent",
+            color: "inherit",
+            cursor: disabled ? "default" : "pointer",
+            opacity: disabled ? 0.4 : 1,
+            transition: "opacity 0.2s ease",
+        }),
+
+        startersWrap: {
+            display: "flex",
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: 8,
+            marginTop: 10,
+        },
+        chip: (c: string, isVisible: boolean): React.CSSProperties => ({
+            padding: "8px 12px",
+            borderRadius: 999,
+            border: `1px solid ${c}22`,
+            background: "rgba(255,255,255,.05)",
+            cursor: "pointer",
+            fontSize: starterFontSize ?? 12,
+            fontFamily: `${starterFont || bodyFont}, ui-sans-serif, system-ui`,
+            color: c,
+            opacity: isVisible ? 0.95 : 0,
+            transform: isVisible ? "translateY(0)" : "translateY(10px)",
+            transition: "opacity 0.4s ease, transform 0.4s ease",
+        }),
+
+        typing: {
+            display: "inline-flex",
+            gap: 4,
+            alignItems: "center",
+            padding: "10px 12px",
+            borderRadius: 16,
+            background: "rgba(255,255,255,.08)",
+        },
+        dot: {
+            width: 6,
+            height: 6,
+            borderRadius: 99,
+            background: "rgba(255,255,255,.7)",
+            animation: "blink 1.4s infinite both",
+        },
+    }
+
+    function formatMeta(ts: number) {
+        const d = new Date(ts)
+        const mm = String(d.getMonth() + 1).padStart(2, "0")
+        const dd = String(d.getDate()).padStart(2, "0")
+        const weekday = d.toLocaleDateString("en-US", { weekday: "short" })
+        const hh = String(d.getHours()).padStart(2, "0")
+        const mi = String(d.getMinutes()).padStart(2, "0")
+        return `${weekday} ${mm}/${dd} · ${hh}:${mi}`
+    }
+
+    // Estilo dinâmico para o wrapper dos botões do header
+    const actionsStyle: React.CSSProperties = {
+        ...styles.actions,
+        opacity: hasAssistantResponse ? 1 : 0,
+        transform: hasAssistantResponse ? "translateY(0)" : "translateY(-10px)",
+        pointerEvents: hasAssistantResponse ? "auto" : "none",
+        transition: "opacity 0.4s ease 0.2s, transform 0.4s ease 0.2s",
+    }
+
+    return (
+        <div ref={rootRef} style={{ ...styles.root, ...rootStyle }} data-theme="dark">
+            <style>{`
+                ${dotKeyframes}
+                .${inputClass}::placeholder { font-size: ${placeholderFontSize || 14}px; }
+
+                /* —— bolinha orgânica, AGORA PARAMETRIZADA —— */
+                .${blobClass} { position: relative; background: transparent; }
+                .${blobClass}::before {
+                  content: "";
+                  position: absolute;
+                  left: 50%;
+                  top: 50%;
+                  width: var(--blob-size, 100px);
+                  height: var(--blob-size, 100px);
+                  transform: translate(-50%, -50%) scale(var(--blob-scale, 0.36));
+                  background: var(--blob-bg, rgba(255,255,255,.10));
+                  clip-path: path('M50,12 C65,10 75,15 82,25 C88,35 92,48 88,62 C84,76 75,85 60,88 C45,91 30,87 20,75 C10,63 6,48 10,33 C14,18 30,14 50,12 Z');
+                  transition: clip-path .45s cubic-bezier(.25,.1,.25,1), transform .2s ease, background .2s ease;
+                  will-change: clip-path, transform;
+                  pointer-events: none;
+                }
+                .${blobClass}:hover::before {
+                  clip-path: path('M50,8 C70,8 85,12 92,28 C96,38 94,50 90,62 C86,74 78,88 58,92 C38,96 20,92 12,76 C6,64 4,48 8,32 C12,16 28,8 50,8 Z');
+                  transform: translate(-50%, -50%) scale(calc(var(--blob-scale, 0.36) + 0.02));
+                }
+                .${blobClass}:active::before {
+                  transform: translate(-50%, -50%) scale(calc(var(--blob-scale, 0.36) - 0.02));
+                }
+                @supports not (clip-path: path('M50,12 50,12')) {
+                  .${blobClass}::before { border-radius: 999px; clip-path: none; }
+                }
+            `}</style>
+
+            <div style={styles.header}>
+                <div style={styles.titleRow}>
+                    <div style={styles.title}>{title || "Assistant"}</div>
+                </div>
+
+                <div style={actionsStyle}>
+                    <button
+                        className={blobClass}
+                        style={{
+                            ...styles.actionBtn(
+                                btn1Bg,
+                                btn1Color,
+                                !!showBtn1Label
+                            ),
+                            ["--blob-bg" as any]: btn1Bg,
+                            ["--blob-size" as any]: `95px`,
+                            ["--blob-scale" as any]: headerBtnDim / 95,
+                            height: headerBtnDim,
+                            width: headerBtnDim,
+                            borderRadius: Math.round(headerBtnDim / 2),
+                        }}
+                        onClick={exportPDF}
+                        title="Export PDF"
+                    >
+                        <Icon name={btn1IconName} size={_headerIcon} />
+                        {showBtn1Label ? btn1Text || "Export" : null}
+                    </button>
+
+                    <button
+                        className={blobClass}
+                        style={{
+                            ...styles.actionBtn(
+                                btn2Bg,
+                                btn2Color,
+                                !!showBtn2Label
+                            ),
+                            ["--blob-bg" as any]: btn2Bg,
+                            ["--blob-size" as any]: `95px`,
+                            ["--blob-scale" as any]: headerBtnDim / 95,
+                            height: headerBtnDim,
+                            width: headerBtnDim,
+                            borderRadius: Math.round(headerBtnDim / 2),
+                        }}
+                        onClick={sendEmail}
+                        title="Send email"
+                    >
+                        <Icon name={btn2IconName} size={_headerIcon} />
+                        {showBtn2Label ? btn2Text || "Email" : null}
+                    </button>
+                </div>
+            </div>
+
+            <div ref={scrollRef} style={styles.scrollWrap}>
+                {visibleMessages.map((m, i) => {
+                    const isUser = m.role === "user"
+                    const isCarol = m.id === "carol-intro"
+                    const isFeedbackPrompt = showFeedbackPrompt === m.id
+
+                    const prevMessage = visibleMessages[i - 1]
+                    const isFirstInGroup =
+                        !prevMessage || prevMessage.role !== m.role
+                    const shouldRenderAuthor =
+                        (isFirstInGroup || isCarol) && !isFeedbackPrompt
+
+                    return (
+                        <div
+                            key={m.id}
+                            style={{
+                                ...styles.bubbleRow,
+                                ...(isUser ? styles.user : {}),
+                            }}
+                        >
+                            <div
+                                style={{
+                                    display: "inline-flex",
+                                    flexDirection: "column",
+                                    alignItems: isUser
+                                        ? "flex-end"
+                                        : "flex-start",
+                                    gap: 4,
+                                }}
+                            >
+                                {shouldRenderAuthor && (
+                                    <div
+                                        style={{
+                                            ...styles.authorRow,
+                                            ...(isUser
+                                                ? styles.authorRight
+                                                : styles.authorLeft),
+                                        }}
+                                    >
+                                        {!isUser && !isCarol && (
+                                            <span style={styles.aiIconInline}>
+                                                <Icon
+                                                    name="sparkles"
+                                                    size={
+                                                        typeof aiIconSize ===
+                                                        "number"
+                                                            ? aiIconSize
+                                                            : 12
+                                                    }
+                                                />
+                                            </span>
+                                        )}
+
+                                        <span style={styles.authorName}>
+                                            {isCarol
+                                                ? "Carol Levtchenko"
+                                                : isUser
+                                                  ? "You"
+                                                  : "Carol's Assistant"}
+                                        </span>
+
+                                        {!isCarol && (
+                                            <span style={styles.authorMeta}>
+                                                {formatMeta(m.createdAt)}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Bolha */}
+                                <div
+                                    style={{
+                                        ...styles.bubble,
+                                        ...(isCarol
+                                            ? styles.carolBubble
+                                            : isUser
+                                              ? styles.userBubble
+                                              : styles.assistantBubble),
+                                    }}
+                                >
+                                    {renderMarkdownText(m.content)}
+                                </div>
+
+                                {/* Dicas da Carol */}
+                                {isCarol &&
+                                    showStartersContainer &&
+                                    starters.length > 0 && (
+                                        <div style={styles.startersWrap}>
+                                            {starters.map((s, i) => (
+                                                <button
+                                                    key={i}
+                                                    style={styles.chip(
+                                                        tipColor,
+                                                        i < visibleTipCount
+                                                    )}
+                                                    onClick={() => send(s)}
+                                                >
+                                                    {s}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                {/* Dicas de Feedback (Yes/No) */}
+                                {isFeedbackPrompt && (
+                                    <div style={styles.startersWrap}>
+                                        <button
+                                            key="feedback-yes"
+                                            style={{
+                                                ...styles.chip(tipColor, true),
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                gap: 6,
+                                            }}
+                                            onClick={() =>
+                                                handleFeedback("Yes")
+                                            }
+                                        >
+                                            <Icon
+                                                name="thumbUp"
+                                                size={14}
+                                                color={tipColor}
+                                            />{" "}
+                                            Yes
+                                        </button>
+                                        <button
+                                            key="feedback-no"
+                                            style={{
+                                                ...styles.chip(tipColor, true),
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                gap: 6,
+                                            }}
+                                            onClick={() =>
+                                                handleFeedback("No")
+                                            }
+                                        >
+                                            <Icon
+                                                name="thumbDown"
+                                                size={14}
+                                                color={tipColor}
+                                            />{" "}
+                                            No
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )
+                })}
+
+                {isThinking && (
+                    <div style={styles.bubbleRow}>
+                        <div style={styles.typing}>
+                            <span
+                                style={{ ...styles.dot, animationDelay: "0s" }}
+                            />
+                            <span
+                                style={{ ...styles.dot, animationDelay: ".2s" }}
+                            />
+                            <span
+                                style={{ ...styles.dot, animationDelay: ".4s" }}
+                            />
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            <div style={styles.inputWrap}>
+                <div style={styles.inputField}>
+                    <input
+                        className={inputClass}
+                        style={styles.input}
+                        placeholder={
+                            placeholder ||
+                            "What do you want to know about my career?"
+                        }
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (
+                                e.key === "Enter" &&
+                                !e.shiftKey &&
+                                !isInputEmpty
+                            ) {
+                                e.preventDefault()
+                                send()
+                            }
+                        }}
+                    />
+                    <button
+                        className={blobClass}
+                        style={{
+                            ...styles.sendInside(isInputEmpty),
+                            ["--blob-bg" as any]: isInputEmpty ? "transparent" : "rgba(255,255,255,.10)",
+                            ["--blob-size" as any]: `95px`,
+                            ["--blob-scale" as any]: sendBtnDim / 95,
+                            height: sendBtnDim,
+                            width: sendBtnDim,
+                        }}
+                        onClick={() => send()}
+                        title="Send message"
+                        disabled={isInputEmpty}
+                    >
+                        <Icon name={sendIconName} size={_sendIcon} />
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+function escapeHtml(str: string) {
+    return str
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;")
+}
+
+// -------- Controls --------
+const iconOptions: IconName[] = [
+    "none",
+    "download",
+    "mail",
+    "send",
+    "share",
+    "file",
+    "printer",
+    "arrowUpRight",
+    "sparkles",
+    "bot",
+    "mailAlt",
+    "thumbUp", 
+    "thumbDown",
+]
+
+addPropertyControls(AIAssistant, {
+    title: {
+        type: ControlType.String,
+        title: "Title",
+        defaultValue: "Assistant",
+    },
+
+    // Title font & icon
+    titleFont: {
+        type: ControlType.String,
+        title: "Title Font",
+        defaultValue: "Inter",
+    },
+    titleFontSize: {
+        type: ControlType.Number,
+        title: "Title Size",
+        defaultValue: 14,
+        min: 10,
+        max: 64,
+        unit: "px",
+        displayStepper: true,
+    },
+    showTitleIcon: {
+        type: ControlType.Boolean,
+        title: "Title Icon",
+        defaultValue: true,
+    },
+    titleIconName: {
+        type: ControlType.Enum,
+        title: "Icon",
+        options: iconOptions,
+        optionTitles: iconOptions,
+        defaultValue: "sparkles",
+        hidden: (p: any) => !p.showTitleIcon,
+    },
+    titleIconSize: {
+        type: ControlType.Number,
+        title: "Icon Size",
+        defaultValue: 16,
+        min: 8,
+        max: 48,
+        unit: "px",
+        displayStepper: true,
+        hidden: (p: any) => !p.showTitleIcon,
+    },
+
+    // Colors & body/fonts
+    bgColor: {
+        type: ControlType.Color,
+        title: "Background",
+        defaultValue: "#0c0c0c",
+    },
+    textColor: {
+        type: ControlType.Color,
+        title: "Text",
+        defaultValue: "#EDEDED",
+    },
+    tipColor: {
+        type: ControlType.Color,
+        title: "Tip Text",
+        defaultValue: "#CFF7D3",
+    },
+    carolBubbleBg: {
+        type: ControlType.Color,
+        title: "Carol Bubble Bg",
+        defaultValue: "rgba(255,255,255,.15)",
+    },
+    bodyFont: {
+        type: ControlType.String,
+        title: "Body Font",
+        defaultValue: "Inter",
+    },
+    buttonsFont: {
+        type: ControlType.String,
+        title: "Buttons Font",
+        defaultValue: "Inter",
+    },
+
+    // Tipografia do autor
+    authorFont: {
+        type: ControlType.String,
+        title: "Author Font",
+        defaultValue: "Inter",
+    },
+    authorFontSize: {
+        type: ControlType.Number,
+        title: "Author Size",
+        defaultValue: 14,
+        min: 8,
+        max: 32,
+        unit: "px",
+        displayStepper: true,
+    },
+
+    // Ícone AI inline
+    aiIconSize: {
+        type: ControlType.Number,
+        title: "AI Icon Size",
+        defaultValue: 12,
+        min: 8,
+        max: 32,
+        unit: "px",
+        displayStepper: true,
+    },
+
+    // Tamanho de ícones dos botões
+    headerIconSize: {
+        type: ControlType.Number,
+        title: "Header Icons Size",
+        defaultValue: 14,
+        min: 8,
+        max: 32,
+        unit: "px",
+        displayStepper: true,
+    },
+    sendIconSize: {
+        type: ControlType.Number,
+        title: "Send Icon Size",
+        defaultValue: 14,
+        min: 8,
+        max: 32,
+        unit: "px",
+        displayStepper: true,
+    },
+
+    // Starters
+    majorDivider: {
+        type: ControlType.Separator,
+        title: "Starters",
+    },
+    starter1: {
+        type: ControlType.String,
+        title: "Tip #1",
+        defaultValue: "What inspired your career path?",
+    },
+    starter2: {
+        type: ControlType.String,
+        title: "Tip #2",
+        defaultValue: "Describe a significant project & impact.",
+    },
+    starter3: {
+        type: ControlType.String,
+        title: "Tip #3",
+        defaultValue: "How do you stay updated & grow?",
+    },
+
+    // Header Buttons
+    headerDivider: {
+        type: ControlType.Separator,
+        title: "Header Buttons",
+    },
+    btn1Text: {
+        type: ControlType.String,
+        title: "Btn1 Text",
+        defaultValue: "Export",
+        hidden: (p: any) => p && p.showBtn1Label === false,
+    },
+    btn1IconName: {
+        type: ControlType.Enum,
+        title: "Btn1 Icon",
+        options: iconOptions,
+        optionTitles: iconOptions,
+        defaultValue: "download",
+    },
+    btn1Bg: {
+        type: ControlType.Color,
+        title: "Btn1 Bg",
+        defaultValue: "rgba(255,255,255,.06)",
+    },
+    btn1Color: {
+        type: ControlType.Color,
+        title: "Btn1 Color",
+        defaultValue: "#EDEDED",
+    },
+    showBtn1Label: {
+        type: ControlType.Boolean,
+        title: "Btn1 Label",
+        defaultValue: true,
+    },
+
+    btn2Text: {
+        type: ControlType.String,
+        title: "Btn2 Text",
+        defaultValue: "Email",
+        hidden: (p: any) => p && p.showBtn2Label === false,
+    },
+    btn2IconName: {
+        type: ControlType.Enum,
+        title: "Btn2 Icon",
+        options: iconOptions,
+        optionTitles: iconOptions,
+        defaultValue: "mail",
+    },
+    btn2Bg: {
+        type: ControlType.Color,
+        title: "Btn2 Bg",
+        defaultValue: "rgba(255,255,255,.06)",
+    },
+    btn2Color: {
+        type: ControlType.Color,
+        title: "Btn2 Color",
+        defaultValue: "#EDEDED",
+    },
+    showBtn2Label: {
+        type: ControlType.Boolean,
+        title: "Btn2 Label",
+        defaultValue: true,
+    },
+
+    // Backend
+    backendDivider: {
+        type: ControlType.Separator,
+        title: "Backend",
+    },
+    serverEndpoint: {
+        type: ControlType.String,
+        title: "Server Endpoint (Ask)",
+        defaultValue: "",
+    },
+    feedbackEndpoint: {
+        type: ControlType.String,
+        title: "Feedback Endpoint (POST)",
+        defaultValue: "/api/feedback",
+        placeholder: "Ex: /api/feedback",
+    },
+    serverAuthHeader: {
+        type: ControlType.String,
+        title: "Auth Header (JSON)",
+        defaultValue: "",
+        displayTextArea: true,
+    },
+    useOpenAI: {
+        type: ControlType.Boolean,
+        title: "Use OpenAI (unsafe)",
+        defaultValue: false,
+    },
+    openaiKey: {
+        type: ControlType.String,
+        title: "OpenAI Key",
+        defaultValue: "",
+    },
+    openaiModel: {
+        type: ControlType.String,
+        title: "Model",
+        defaultValue: "gpt-4o-mini",
+    },
+
+    systemDivider: {
+        type: ControlType.Separator,
+        title: "System / Knowledge",
+    },
+    systemPrompt: {
+        type: ControlType.String,
+        title: "System Prompt",
+        defaultValue:
+            "You are a helpful portfolio assistant. Answer concisely and ask a follow-up when relevant.",
+        displayTextArea: true,
+    },
+    knowledge: {
+        type: ControlType.String,
+        title: "Knowledge JSON / Text",
+        defaultValue: "",
+        displayTextArea: true,
+    },
+
+    emailDivider: {
+        type: ControlType.Separator,
+        title: "Email",
+    },
+    emailEndpoint: {
+        type: ControlType.String,
+        title: "Email Endpoint",
+        defaultValue: "/api/send-email",
+    },
+    emailDefaultTo: {
+        type: ControlType.String,
+        title: "Email To (default)",
+        defaultValue: "",
+    },
+
+    // Placeholder / Input
+    placeholderDivider: {
+        type: ControlType.Separator,
+        title: "Placeholder",
+    },
+    placeholder: {
+        type: ControlType.String,
+        title: "Placeholder",
+        defaultValue: "What do you want to know about my career?",
+    },
+    placeholderFontSize: {
+        type: ControlType.Number,
+        title: "Placeholder Size",
+        defaultValue: 14,
+        min: 8,
+        max: 32,
+        displayStepper: true,
+        unit: "px",
+    },
+
+    // Send Button
+    sendDivider: {
+        type: ControlType.Separator,
+        title: "Send Button",
+    },
+    sendText: {
+        type: ControlType.String,
+        title: "Send Text",
+        defaultValue: "Send",
+        hidden: (p: any) => p && p.showSendLabel === false,
+    },
+    sendIconName: {
+        type: ControlType.Enum,
+        title: "Send Icon",
+        options: iconOptions,
+        optionTitles: iconOptions,
+        defaultValue: "send",
+    },
+    showSendLabel: {
+        type: ControlType.Boolean,
+        title: "Send Label",
+        defaultValue: true,
+    },
+
+    // Chat & Tips typography
+    chatFont: {
+        type: ControlType.String,
+        title: "Chat Font",
+        defaultValue: "Inter",
+    },
+    chatFontSize: {
+        type: ControlType.Number,
+        title: "Chat Font Size",
+        defaultValue: 14,
+        min: 8,
+        max: 32,
+        unit: "px",
+        displayStepper: true,
+    },
+    starterFont: {
+        type: ControlType.String,
+        title: "Tips Font",
+        defaultValue: "Inter",
+    },
+    starterFontSize: {
+        type: ControlType.Number,
+        title: "Tips Font Size",
+        defaultValue: 12,
+        min: 8,
+        max: 32,
+        unit: "px",
+        displayStepper: true,
+    },
+})
