@@ -57,7 +57,7 @@ export default async function handler(req, res) {
     // 2. INSERÇÃO DOS DADOS NA PLANILHA
     // ----------------------------------------------------
     // ⚠️ ATUALIZE O NOME DA ABA SE 'Feedback Log' NÃO FOR O NOME EXATO
-    const sheetName = 'Sheet1'; 
+    const sheetName = 'feedback_log'; 
     
     // Os dados a serem inseridos, na ordem das colunas da sua planilha (A, B, C, D, E)
     const values = [
