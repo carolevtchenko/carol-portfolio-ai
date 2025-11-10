@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@langchain/core": "^1.0.3",
     "@langchain/textsplitters": "^1.0.0",
     "@upstash/vector": "^1.2.2",

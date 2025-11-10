@@ -60,7 +60,9 @@ export default async function handler(req, res) {
 
 
     // 5. Montar o Histórico para o Gemini (Mantido)
-    const history = messages.slice(0, -1).map(m => ({
+    const history = messages.slice(0, -1)
+    .filter(m => m.id !== 'carol-intro') // <-- ADICIONADO: Remove a mensagem inicial da Carol
+    .map(m => ({
         role: m.role,
         parts: [{ text: m.content }]
     }));
