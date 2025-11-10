@@ -80,7 +80,7 @@ ${context || "No context found for this query."}
 
     // 7. Chamar o Gemini (Mantido)
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.5-flash",
       systemInstruction: systemPrompt,
     });
 
