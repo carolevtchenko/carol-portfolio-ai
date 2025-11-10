@@ -60,10 +60,12 @@ export default async function handler(req, res) {
 
 
     // 5. Montar o Histórico para o Gemini (Mantido)
-    const history = messages.slice(0, -1)
-    .filter(m => !m.content.includes("I'm glad you got to meet my assistant")) // <-- NOVA CORREÇÃO: Filtra pelo texto
+    // 5. Montar o Histórico para o Gemini
+const history = messages.slice(0, -1)
+    .filter(m => !m.content.includes("I'm glad you got to meet my assistant"))
     .map(m => ({
-        role: m.role,
+        // ⬇️ CORREÇÃO: Se for 'assistant', usa 'model', senão usa o papel original ⬇️
+        role: m.role === 'assistant' ? 'model' : m.role,
         parts: [{ text: m.content }]
     }));
 
