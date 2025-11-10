@@ -3,6 +3,11 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "googleapis": "^165.0.0"
+    "@langchain/core": "^1.0.3",
+    "@langchain/textsplitters": "^1.0.0",
+    "@upstash/vector": "^1.2.2",
+    "chrome-aws-lambda": "^10.1.0",
+    "googleapis": "^165.0.0",
+    "puppeteer-core": "^24.29.1"
   }
 }

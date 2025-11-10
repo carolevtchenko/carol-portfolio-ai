@@ -1,0 +1,101 @@
+PROFILE  
+I’m Carol Levtchenko, a Senior Product Designer from Brazil with over six years of experience across advertising, fintech, agribusiness, and influencer marketing. I’m currently part of Globo, Brazil’s largest media group, where I lead UX strategy, design systems, and information architecture for internal products that optimize advertising operations and affiliate workflows.  
+
+I specialize in system thinking and end-to-end product design — from research and discovery to delivery and design system governance. My strongest skills include UX Strategy, Information Architecture, and Design Systems. I’m passionate about creating scalable structures that bring clarity and consistency to complex environments.
+
+I’ve worked remotely for about six years, collaborating with international and cross-functional teams that include Product Managers, Engineers, and Data Analysts. My way of working is collaborative, evidence-based, and guided by systemic clarity — I enjoy connecting business strategy, usability, and technology to deliver measurable results.
+
+---
+
+CURRENT ROLE — GLOBO (2023–Present)  
+- Senior Product Designer in the Affiliate Sales Operations squad.  
+- Focus: improving the Portal de Parceiros (Salesforce-based system) that connects Globo’s internal commercial teams with 27 affiliate stations across Brazil.  
+- Scope: mapping workflows (pleitos, credentialing, quotas), aligning internal teams (PPC, RCI, OPEC), and structuring governance and information architecture to reduce friction and scale operations.  
+- Impact: created a framework of landing page templates for commercial campaigns — reducing design time by 97% and development time by 67%, restoring consistency and empowering non-designers to publish pages autonomously.
+
+---
+
+PREVIOUS EXPERIENCE  
+
+**Traive (Agritech Startup)**  
+- Role: Product Designer (sole designer on the team).  
+- Focus: redesigned the credit request flow and evolved the design system to bring consistency, scalability, and usability.  
+- Achievements: introduced semantic and primitive design tokens, collaborated closely with developers using Tailwind CSS, and balanced strategy with delivery in a constrained environment.
+
+**Grupo SBF — Nike & Centauro (2022)**  
+- Role: UX Strategist, UX Researcher, UI Designer.  
+- Challenge: fragmented influencer data prevented creators from understanding how engagement translated to sales.  
+- Solution: designed and launched Nike’s first influencer marketing program in Brazil — “Social Commerce.”  
+- Impact: onboarded 600+ creators, generated over USD 200,000 in monthly revenue, and represented 4% of Nike/Centauro’s e-commerce income. The platform allowed creators to generate links, track performance, and withdraw or redeem commissions.  
+- Outcome: empowered creators to earn over USD 20,000/month while giving SBF a data-driven channel to convert advocacy into sales.
+
+**TC (Traders Club)**  
+- Role: Product Designer.  
+- Challenge: investors needed to leave the app to view stock quotes in real time.  
+- Solution: integrated stock market data directly into the platform.  
+- Result: increased DAU and retention, making TC the daily starting point for investors.
+
+---
+
+SELECTED PROJECT — AUDITRAIL (2025, uitify)  
+- Goal: redesign an order management system for legal service partners who were facing fragmented workflows and high error rates.  
+- Approach: benchmarked Stripe, Deel, and Corporate Tools; mapped journeys; identified pain points; and created personas and low-fidelity prototypes.  
+- Solution: scalable interface with smart filters, prioritization, guardrails, and structured order views.  
+- Suggested success metrics: +18% orders completed without support, +7.5% lower error rate, and higher satisfaction (from 6.5 to 9/10).  
+- Focused on reducing cognitive load, minimizing risks, and strengthening compliance and scalability.
+
+---
+
+DESIGN APPROACH  
+I follow an iterative, evidence-driven process inspired by Triple-Track Agile (Marty Cagan) and the Double Diamond.  
+**Problem Space → Solution Space → Development Space**  
+1. **Problem Definition** — Frame business goals and research hypotheses; identify the “four big risks” (value, usability, feasibility, viability).  
+2. **Research & Synthesis** — Qualitative and quantitative research, competitor benchmarking, journey mapping, and affinity clustering.  
+3. **Ideation & Prototyping** — From brainstorming and IA to wireframes, usability testing, and iterative refinement.  
+4. **Validation & Metrics** — Use frameworks like HEART, AARRR, and OKRs to measure adoption, efficiency, and satisfaction.
+
+**Core Tools:** Figma, FigJam, Notion, Jira, Hotjar, Mixpanel, Maze, Relume, Confluence, Salesforce Lightning Tokens, ChatGPT.  
+**Core Frameworks:** UX Strategy (Jamie Levy), Lean UX, Design Sprint, Value Proposition Canvas, Atomic Research, and Design Systems governance.  
+
+---
+
+STRENGTHS & PRINCIPLES  
+- **UX Strategy:** aligning business goals with validated research and measurable impact.  
+- **Information Architecture:** building content-first structures that clarify complexity.  
+- **Design Systems:** bridging design and development through semantic tokens and scalable patterns.  
+- **System Thinking:** connecting interfaces, processes, and governance into cohesive ecosystems.  
+- **Collaboration:** co-creation with PMs and engineers to ensure usability and feasibility.  
+- **Continuous Learning:** research-driven iteration and post-launch measurement.  
+- **Ethics & Accessibility:** ensuring design supports autonomy, clarity, and inclusion.
+
+---
+
+IMPACT & RESULTS (HIGHLIGHTS)  
+- Nike/Centauro Social Commerce: 600 creators onboarded, 4% of total e-commerce sales, USD 200K monthly revenue.  
+- Globo Landing Pages System: -97% design time, -67% dev time, consistent brand experience.  
+- Traive Credit Flow: improved efficiency and design system maturity under startup constraints.  
+- TC Stock Quotes: increased engagement and retention among investors.  
+- uitify AuditTrail: restructured legal workflows, reduced errors, and built scalability metrics.
+
+---
+
+DESIGN PHILOSOPHY  
+I believe design should behave like a good teammate: respectful, generous, and helpful. I’m inspired by Alan Cooper, Don Norman, and Tristan Harris — balancing usability, empathy, and ethics.  
+For me, design is about clarity — making complex systems understandable, scalable, and humane.  
+
+---
+
+SOFT SKILLS & CULTURE FIT  
+- Collaborative and empathetic communicator.  
+- Strong stakeholder management and storytelling.  
+- Open feedback loop with data-backed validation.  
+- Works comfortably in remote, async, and global teams.  
+- Values evidence-based decisions, business alignment, and continuous improvement.
+
+---
+
+WHAT I SEEK IN FUTURE ROLES  
+- Opportunities to work on end-to-end challenges that balance strategy and delivery.  
+- Design maturity and genuine collaboration between disciplines.  
+- Environments where design impacts both business outcomes and user well-being.  
+- A culture that values clarity, learning, and evidence over assumptions.
